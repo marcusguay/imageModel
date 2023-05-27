@@ -18,30 +18,27 @@ public class main {
     static Color whiteC = new Color(255, 255, 255);
     static int white = whiteC.getRGB();
 
-    public static class Pair {
+    public static class DataLabelPair {
 
-        int x;
-        int y;
+        String data;
+        String labels;
 
-        Pair(int iX, int iY) {
-            x = iX;
-            y = iY;
+        DataLabelPair(String newData, String newLabel) {
+            data = newData;
+            labels = newLabel;
         }
     }
 
-    public static int[] convertToIntArray(byte[] input)
-    {
+    public static int[] convertToIntArray(byte[] input) {
         int[] ret = new int[input.length];
-        for (int i = 0; i < input.length; i++)
-        {
+        for (int i = 0; i < input.length; i++) {
             ret[i] = input[i] & 0xff; // Range 0 to 255, not -128 to 127
         }
         return ret;
     }
 
 
-
-    public static String OffsetImage(BufferedImage img ,File path , int offsetx, int offsety) {
+    public static DataLabelPair OffsetImage(BufferedImage img, File path, int offsetx, int offsety,int labelIndex) {
         BufferedImage bi = new BufferedImage(resizeWidth, resizeHeight, BufferedImage.TYPE_BYTE_BINARY);
 
         Graphics2D g = bi.createGraphics();
@@ -56,20 +53,20 @@ public class main {
 
 
         //Saves image to view changes made by normalizer
-        String pathString = path.getAbsolutePath();
-        File savePath = new File(pathString.substring(0,pathString.length()-4) + offsetx + offsety +  ".png");
-                try {
-               ImageIO.write(bi, "png", savePath);
-                            } catch (IOException e) {
-               System.out.println("IO Exception");
-                            }
+//        String pathString = path.getAbsolutePath();
+//        File savePath = new File(pathString.substring(0, pathString.length() - 4) + offsetx + offsety + ".png");
+//        try {
+//            ImageIO.write(bi, "png", savePath);
+//        } catch (IOException e) {
+//            System.out.println("IO Exception");
+//        }
 
 
         String data = "[";
         for (int y = 0; y < bi.getHeight(); y++) {
             for (int x = 0; x < bi.getWidth(); x++) {
-                int pixel = bi.getRGB(x,y);
-                if(pixel == -1){
+                int pixel = bi.getRGB(x, y);
+                if (pixel == -1) {
                     pixel = 255;
                 } else {
                     pixel = 0;
@@ -78,7 +75,7 @@ public class main {
             }
         }
 
-        // Potentially faster way to convert however data sizes don't match
+        // Potentially faster way to convert however data sizes don't seem to match.
 //        byte[] pixels = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
 //
 //
@@ -88,16 +85,19 @@ public class main {
 //        }
 
 
-
-        data = data.substring(0,data.length()-1);
+        data = data.substring(0, data.length() - 1);
         data = data.concat("],");
 
+         String label = "";
+         label = label + labelIndex + ",";
 
-        return data;
+        DataLabelPair pair = new DataLabelPair(data,label);
+
+        return pair;
     }
 
 
-    static String normalize(BufferedImage img,File path) {
+    static DataLabelPair normalize(BufferedImage img, File path, int labelIndex) {
 
         int width = img.getWidth();
         int height = img.getHeight();
@@ -109,8 +109,8 @@ public class main {
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                int pixel = img.getRGB(x,y);
-                if (pixel != white && (pixel>>24) != 0x00) {
+                int pixel = img.getRGB(x, y);
+                if (pixel != white && (pixel >> 24) != 0x00) {
                     img.setRGB(x, y, rgb);
                     if (x < firstx) {
                         firstx = x;
@@ -131,68 +131,37 @@ public class main {
         }
 
 
-        //System.out.println("First X " + firstx + "FirstY " + firsty);
-        //System.out.println("Second X " + secondX + "Second Y " + secondY);
-
-//        BufferedImage bi = new BufferedImage(resizeWidth, resizeHeight, BufferedImage.TYPE_BYTE_BINARY);
-//
-//        Graphics2D g = bi.createGraphics();
-//        g.setColor(Color.WHITE);
-//        g.fillRect(0, 0, resizeWidth, resizeHeight);
-//        int offsetSizeX = (secondX - firstx) / 2;
-//        int offsetSizeY = (secondY - firsty) / 2;
-//
-//
-//        g.drawImage(img, resizeWidth / 2 - offsetSizeX, resizeHeight / 2 - offsetSizeY, null);
-//        g.dispose();
-
-        // Saves image to view changes made by normalizer
-        //        try {
-        //       ImageIO.write(bi, "png", path);
-        //                    } catch (IOException e) {
-        //       System.out.println("IO Exception");
-       //                    }
-
-
-
-//        String data = "[";
-//        for (int y = 0; y < bi.getHeight(); y++) {
-//            for (int x = 0; x < bi.getWidth(); x++) {
-//                int pixel = bi.getRGB(x,y);
-//                if(pixel == -1){
-//                    pixel = 255;
-//                } else {
-//                    pixel = 0;
-//                }
-//                data = data.concat(pixel + ",");
-//                }
-//            }
-
-
-
-        // Potentially faster way to convert however data sizes don't match
-//        byte[] pixels = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
-//
-//
-//        int [] rgb = convertToIntArray(pixels);
-//        for(int i : rgb) {
-//         data = data.concat(i + ",");
-//        }
-
         int offsetSizeX = (secondX - firstx) / 2;
         int offsetSizeY = (secondY - firsty) / 2;
 
-         String data = OffsetImage(img,path,offsetSizeX,offsetSizeY);
+
+        DataLabelPair pair = OffsetImage(img, path, offsetSizeX, offsetSizeY,labelIndex);
+        DataLabelPair pair1 = OffsetImage(img, path, offsetSizeX - 25, offsetSizeY,labelIndex);
+        DataLabelPair pair2 = OffsetImage(img, path, offsetSizeX + 25, offsetSizeY,labelIndex);
+        DataLabelPair pair3 = OffsetImage(img, path, offsetSizeX - 25, offsetSizeY + 25,labelIndex);
+        DataLabelPair pair4 = OffsetImage(img, path, offsetSizeX + 25, offsetSizeY - 25,labelIndex);
+        DataLabelPair pair5 = OffsetImage(img, path, offsetSizeX, offsetSizeY + 25,labelIndex);
+        DataLabelPair pair6 = OffsetImage(img, path, offsetSizeX, offsetSizeY - 25,labelIndex);
+
+        String data = pair.data;
+        data = data.concat(pair1.data);
+        data = data.concat(pair2.data);
+        data = data.concat(pair3.data);
+        data = data.concat(pair4.data);
+        data = data.concat(pair5.data);
+        data = data.concat(pair6.data);
+
+        String label =  pair.labels;
+        label = label.concat(pair1.labels);
+        label = label.concat(pair2.labels);
+        label = label.concat(pair3.labels);
+        label = label.concat(pair4.labels);
+        label = label.concat(pair5.labels);
+        label = label.concat(pair6.labels);
 
 
-         data = data.concat(OffsetImage(img,path,offsetSizeX-10,offsetSizeY));
-        data = data.concat(OffsetImage(img,path,offsetSizeX+10,offsetSizeY));
-        data = data.concat(OffsetImage(img,path,offsetSizeX-10,offsetSizeY+10));
-        data = data.concat(OffsetImage(img,path,offsetSizeX+10,offsetSizeY-10));
-        data = data.concat(OffsetImage(img,path,offsetSizeX,offsetSizeY+10));
-        data = data.concat(OffsetImage(img,path,offsetSizeX,offsetSizeY-10));
-
-        return data;
+        DataLabelPair dataLabelPair = new DataLabelPair(data,label);
+        return dataLabelPair;
 
     }
 
@@ -204,42 +173,84 @@ public class main {
 
         File[] files = path.listFiles();
         // Each directory corresponds to label index as each directory contains diff data
-       int labelIndex = 0;
-        for (File f : files) {
-            if (f.isDirectory()) {
-               String stringfilePath = f.getAbsolutePath().concat( "\\" + "Data" + ".js");
-                File characterData = new File(stringfilePath);
-                try {
-                    characterData.createNewFile();
-                    Path filePath= Paths.get(stringfilePath);
-                    String imageData = "Const in = [";
-                    String fileEnd = "\n export const DATA = {\n" +
-                            "  inputs: in,\n" +
-                            "}; ";
+        String stringfilePath = path.getAbsolutePath().concat("\\" + "Data" + ".js");
+        File characterData = new File(stringfilePath);
+        int labelIndex = 0;
 
+        try {
+            Path filePath = Paths.get(stringfilePath);
+            characterData.createNewFile();
+            String imageData = "Const in = [";
+            String labelData = "Const out = [";
+            String correspondingChar = "Const chars = [";
+            String fileEnd = "\n export const DATA = {\n" +
+                    "  inputs: in,\n" +
+                    "characters: chars, \n" +
+                      " outputs: out,\n" +
+                    "}; ";
+
+            for (File f : files) {
+                if (f.isDirectory()) {
+                  correspondingChar = correspondingChar.concat(" \"" + f.getName() + "\" "+ ",");
                     for (File sf : f.listFiles()) {
-                       if( sf.getName().toLowerCase(Locale.ROOT).endsWith(".png")) {
-                           BufferedImage image = ImageIO.read(sf);
-                           imageData = imageData.concat(normalize(image,sf));
-                       }
+                        if (sf.getName().toLowerCase(Locale.ROOT).endsWith(".png")) {
+                            BufferedImage image = ImageIO.read(sf);
+                            DataLabelPair datapair = normalize(image, sf, labelIndex);
+                            imageData = imageData.concat(datapair.data);
+                            labelData = labelData.concat(datapair.labels);
+                        }
                     }
-                       //Remove last comma
-                    imageData = imageData.substring(0,imageData.length()-1);
-                    // Make sure array is closed
-                     imageData = imageData.concat("];" + fileEnd);
-                    //System.out.println(imageData);
+                    labelIndex++;
+                }
+            }
+
+
 
 
                     try {
-                    byte[] data = imageData.getBytes(StandardCharsets.UTF_8);
+                        //Remove last comma
+                        imageData = imageData.substring(0, imageData.length() - 1);
+                        // Make sure array is closed
+                        imageData = imageData.concat("];");
+                        //System.out.println(imageData);
+
+                        //Remove last comma
+                        labelData= labelData.substring(0, labelData.length() - 1);
+                        // Make sure array is closed
+                        labelData = labelData.concat("];");
+
+
+                        correspondingChar= correspondingChar.substring(0, correspondingChar.length() - 1);
+                        // Make sure array is closed
+                        correspondingChar = correspondingChar.concat("];");
+                        //System.out.println(imageData);
+                        String allCombined = imageData + correspondingChar +labelData + fileEnd;
+                        byte[] data = allCombined.getBytes(StandardCharsets.UTF_8);
                         Files.write(filePath, data);
                     } catch (IOException e) {
-                        System.out.println("Data can't be written to file" + stringfilePath);
+                        System.out.println("Data can't be written to file" + filePath);
                     }
-                } catch (IOException e) {
-                    System.out.println("File can't be created");
-                }
-                System.out.println(stringfilePath);
+
+
+
+
+
+        } catch (IOException e) {
+            System.out.println("File can't be created");
+        }
+
+        System.out.println(stringfilePath);
+    }
+
+
+}
+
+
+
+
+
+
+
 
                //  File file = new File(();
 
@@ -252,10 +263,5 @@ public class main {
 //                    } catch (IOException e) {
 //                       System.out.println("IO Exception");
 //                    }
-//                }
-            }
-        }
-    }
-
-}
+//
 
