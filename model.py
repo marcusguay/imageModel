@@ -20,7 +20,7 @@ TIMES_TO_RUN = 1
 
 data_dir = "C:\\Users\\Administrator\\app\Images\\training"
 
-print(tf.config.list_physical_devices('GPU'))
+#print(tf.config.list_physical_devices('GPU'))
 
 INPUT_TENSOR = None
 OUTPUT_TENSOR = None
@@ -35,41 +35,74 @@ def show(image, label):
 
 
 def processImage(path,label):
-    image =  tf.io.read_file(path)
-    image = tf.io.decode_image(image,expand_animations = False,channels = 1, dtype = tf.dtypes.uint8)
-    image = tf.image.convert_image_dtype(image, dtype = tf.int8 , saturate=False, name=None)
-   #show(image, "Lol")
-    return image
+    # print(os.path.join(data_dir,path))\
+    # print("processing iamge")
+    # print(path.numpy())
+     image =  tf.io.read_file(path)
+     image = tf.io.decode_image(image,expand_animations = False,channels = 1, dtype = tf.dtypes.uint8)
+     image = tf.image.convert_image_dtype(image, dtype = tf.int8 , saturate=False, name=None)
+     #show(image, "Lol")
+     label = tf.one_hot(label,NUM_OUTPUTS)
+     return image, label
+  
 
 
+DATASET = None
 
-LABEL = -2
+
+LABEL = 0
+NUM_IMG = 0
 OutputList = []
 InputList = []
 import os
-for dirname, _,filenames in os.walk(data_dir):
+for dirname in os.listdir(data_dir):
+     path = os.path.join(data_dir,dirname)
+    
+     #print("directory")
+    # print(dirname)
+     for filename in os.listdir(path):
+         # print("file")
+         print(os.path.join(dirname,filename))
+        # processImage(os.path.join(dirname,filename),LABEL)
+         InputList.append(os.path.join(data_dir,os.path.join(dirname,filename)))
+         OutputList.append(LABEL)
+         NUM_IMG = NUM_IMG + 1
+     
      LABEL = LABEL + 1
-     print(dirname)
-     for filename in filenames:
-      #print(filename)
-      if INPUT_TENSOR == None:
-       InputList.append(processImage(os.path.join(dirname,filename),dirname))
-       OutputList.append(LABEL)
-      
-         
+     if DATASET == None:
+      TEMP_INPUT_TENSOR = tf.convert_to_tensor(InputList)
+      TEMP_OUTPUT_TENSOR =  tf.convert_to_tensor(OutputList)
+      DATASET = tf.data.Dataset.from_tensor_slices((TEMP_INPUT_TENSOR,TEMP_OUTPUT_TENSOR))
+      InputList = []
+      OutputList = []
+     else:    
+      TEMP_INPUT_TENSOR = tf.convert_to_tensor(InputList)
+      TEMP_OUTPUT_TENSOR =  tf.convert_to_tensor(OutputList)
+      TEMPDATASET = tf.data.Dataset.from_tensor_slices((TEMP_INPUT_TENSOR,TEMP_OUTPUT_TENSOR))
+      DATASET = DATASET.concatenate(TEMPDATASET)
+      InputList = []
+      OutputList = []
+
+     
      
 
 
-print(OutputList)
-INPUT_TENSOR = tf.stack(InputList)
-OUTPUT_TENSOR = tf.one_hot(OutputList,NUM_OUTPUTS)
+DATASET = DATASET.map(processImage)
+DATASET = DATASET.shuffle(NUM_OUTPUTS)
+Split =  NUM_IMG // (10/2)
+TEST_SET = DATASET.take(Split)
+BATCH_DATASET = DATASET.skip(Split)
+BATCH_DATASET = BATCH_DATASET.batch(64)
 
-#print(INPUT_TENSOR)
+for element in DATASET.as_numpy_iterator():
+   print(element)
+
+
 print(OUTPUT_TENSOR)
 
 model = tf.keras.Sequential(
 [
-   
+tf.keras.Input(shape=(150,150,1)),  
 tf.keras.layers.Dense(64, activation = 'relu'),
 tf.keras.layers.Flatten(),
 tf.keras.layers.Dropout(0.2),
@@ -86,7 +119,7 @@ metrics = 'accuracy'
 )
 
 early_stopping_monitor = EarlyStopping(
-    monitor='val_loss',
+    monitor='accuracy',
     min_delta=0,
     patience=50,
     verbose=1,
@@ -96,24 +129,15 @@ early_stopping_monitor = EarlyStopping(
 )
 
 
-
-
-
-
-
-
 while (TIMES_TO_RUN > 0):
-   model.fit(
-   x  = INPUT_TENSOR,
-   y = OUTPUT_TENSOR,
-   epochs = 50,
-   batch_size = 1024,
+    model.fit(
+    BATCH_DATASET,  
+    epochs = 1,
     shuffle = True,
-   validation_split = 0.2,
    callbacks = [early_stopping_monitor]
    )
-   TIMES_TO_RUN = TIMES_TO_RUN - 1
+    TIMES_TO_RUN = TIMES_TO_RUN - 1
 
 
 
-model.save("C:\\Users\\Administrator\\Desktop\\Model")
+# model.save("C:\\Users\\Administrator\\Desktop\\Model")
