@@ -5,100 +5,27 @@
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import tensorflow as tf # tensorflow
+import tensorflow.keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import load_model
 from keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt
 import sys
 
-
+print(tf.config.list_physical_devices('GPU'))
 
 img_height = 150
 img_width = 150
 batch_size = 1024
 TIMES_TO_RUN = 1
 
-data_dir = "C:\\Users\\Administrator\\app\Images\\training"
-
-#print(tf.config.list_physical_devices('GPU'))
+data_dir = "C:\\Users\\Administrator\\app\\Images\\Train"
 
 INPUT_TENSOR = None
 OUTPUT_TENSOR = None
-NUM_OUTPUTS = 628
+NUM_OUTPUTS = 2
 
-def show(image, label):
-   plt.figure()
-   plt.imshow(image, cmap='gray')
-   plt.title("image")
-   plt.axis('off')
-   plt.show()
-
-
-def processImage(path,label):
-    # print(os.path.join(data_dir,path))\
-    # print("processing iamge")
-    # print(path.numpy())
-     image =  tf.io.read_file(path)
-     image = tf.io.decode_image(image,expand_animations = False,channels = 1, dtype = tf.dtypes.uint8)
-     image = tf.image.convert_image_dtype(image, dtype = tf.int8 , saturate=False, name=None)
-     #show(image, "Lol")
-     label = tf.one_hot(label,NUM_OUTPUTS)
-     return image, label
-  
-
-
-DATASET = None
-
-
-LABEL = 0
-NUM_IMG = 0
-OutputList = []
-InputList = []
-import os
-for dirname in os.listdir(data_dir):
-     path = os.path.join(data_dir,dirname)
-    
-     #print("directory")
-    # print(dirname)
-     for filename in os.listdir(path):
-         # print("file")
-         print(os.path.join(dirname,filename))
-        # processImage(os.path.join(dirname,filename),LABEL)
-         InputList.append(os.path.join(data_dir,os.path.join(dirname,filename)))
-         OutputList.append(LABEL)
-         NUM_IMG = NUM_IMG + 1
-     
-     LABEL = LABEL + 1
-     if DATASET == None:
-      TEMP_INPUT_TENSOR = tf.convert_to_tensor(InputList)
-      TEMP_OUTPUT_TENSOR =  tf.convert_to_tensor(OutputList)
-      DATASET = tf.data.Dataset.from_tensor_slices((TEMP_INPUT_TENSOR,TEMP_OUTPUT_TENSOR))
-      InputList = []
-      OutputList = []
-     else:    
-      TEMP_INPUT_TENSOR = tf.convert_to_tensor(InputList)
-      TEMP_OUTPUT_TENSOR =  tf.convert_to_tensor(OutputList)
-      TEMPDATASET = tf.data.Dataset.from_tensor_slices((TEMP_INPUT_TENSOR,TEMP_OUTPUT_TENSOR))
-      DATASET = DATASET.concatenate(TEMPDATASET)
-      InputList = []
-      OutputList = []
-
-     
-     
-
-
-DATASET = DATASET.map(processImage)
-DATASET = DATASET.shuffle(NUM_OUTPUTS)
-Split =  NUM_IMG // (10/2)
-TEST_SET = DATASET.take(Split)
-BATCH_DATASET = DATASET.skip(Split)
-BATCH_DATASET = BATCH_DATASET.batch(64)
-
-for element in DATASET.as_numpy_iterator():
-   print(element)
-
-
-print(OUTPUT_TENSOR)
+tf.config.experimental.set_lms_defrag_enabled(True)
 
 model = tf.keras.Sequential(
 [
@@ -111,6 +38,113 @@ tf.keras.layers.Dropout(0.2),
 tf.keras.layers.Dense(NUM_OUTPUTS, activation = 'softmax')
 ]
 )
+
+
+
+
+def show(image, label):
+   plt.figure()
+   plt.imshow(image, cmap='gray')
+   plt.title("image")
+   plt.axis('off')
+   plt.show()
+
+
+def processImage(path):
+   
+#     # print("processing iamge")
+#      #print(path)
+      image =  tf.io.read_file(path)
+      image = tf.io.decode_png(image,channels = 1, dtype = tf.dtypes.uint8)
+      image = tf.image.convert_image_dtype(image, dtype = tf.int8 , saturate=False, name=None)
+
+      #  show(image, "Lol")
+      image = tf.reshape(image,[img_width, img_height, 1])
+     #  label = tf.one_hot(label,NUM_OUTPUTS)
+     # label = tf.reshape(label,[NUM_OUTPUTS])
+     
+
+      return image
+  
+
+
+DATASET = None
+
+
+LABEL = 0
+NUM_IMG = 0
+OutputList = []
+InputList = []
+import os
+
+for dirname in os.listdir(data_dir):
+ if(NUM_IMG < 20):
+     path = os.path.join(data_dir,dirname)
+   
+     #print("directory")
+     print(dirname)
+     for filename in os.listdir(path):
+         # print("file")
+        # print(os.path.join(dirname,filename))
+        # processImage(os.path.join(dirname,filename),LABEL)
+         InputList.append(processImage(os.path.join(data_dir,os.path.join(dirname,filename))))
+         OutputList.append(tf.one_hot(LABEL,NUM_OUTPUTS))
+         NUM_IMG = NUM_IMG + 1
+
+     if DATASET == None:
+      TEMP_INPUT_TENSOR = tf.convert_to_tensor(InputList)
+      TEMP_OUTPUT_TENSOR =  tf.convert_to_tensor(OutputList)
+      DATASET = tf.data.Dataset.from_tensor_slices((TEMP_INPUT_TENSOR,TEMP_OUTPUT_TENSOR))
+      InputList = []
+      OutputList = []
+     else:    
+      TEMP_INPUT_TENSOR = InputList
+      TEMP_OUTPUT_TENSOR =  OutputList
+      TEMPDATASET = tf.data.Dataset.from_tensor_slices((TEMP_INPUT_TENSOR,TEMP_OUTPUT_TENSOR))
+      DATASET = DATASET.concatenate(TEMPDATASET)
+      InputList = []
+      OutputList = []
+     LABEL = LABEL + 1
+     
+
+ 
+     
+
+
+
+
+DATASET = DATASET.shuffle(NUM_OUTPUTS)
+Split =  (int) (NUM_IMG // (10/2))
+TEST_SET = DATASET.take(Split)
+BATCH_DATASET = DATASET.skip(Split)
+BATCH_DATASET = BATCH_DATASET.batch(2)
+TEST_SET = TEST_SET.batch(2)
+
+
+
+
+# msg = "Split "
+# print(msg + str(Split))
+# print("IMAGES :")
+# print(NUM_IMG)
+# print(NUM_IMG//batch_size)
+
+
+# print(DATASET)
+#print(BATCH_DATASET)
+# print(TEST_SET)
+
+# print( "test")
+
+
+#print("batch")
+
+# for element in DATASET:
+#  print(element)
+
+
+
+
 
 model.compile(
 optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3),
@@ -131,13 +165,21 @@ early_stopping_monitor = EarlyStopping(
 
 while (TIMES_TO_RUN > 0):
     model.fit(
-    BATCH_DATASET,  
+       BATCH_DATASET, 
+       validation_data= TEST_SET,
     epochs = 1,
     shuffle = True,
    callbacks = [early_stopping_monitor]
    )
+    DATASET = DATASET.shuffle(NUM_OUTPUTS)
     TIMES_TO_RUN = TIMES_TO_RUN - 1
+    TEST_SET = DATASET.take(Split)
+    BATCH_DATASET = DATASET.skip(Split)
+    BATCH_DATASET = BATCH_DATASET.batch(64)
+#     print(DATASET)
+#     print(BATCH_DATASET)
+#     print(TEST_SET)
+    model.save("C:\\Users\\Administrator\\Desktop\\Model")
 
 
 
-# model.save("C:\\Users\\Administrator\\Desktop\\Model")
